@@ -48,18 +48,22 @@ const loadData = useCallback(async () => {
 
     const [{ data: cats }, { data: coursesData }, { data: settings }] = await Promise.all([
       supabase.from('categories').select('*').order('name'),
-      supabase.from('courses').select('*, categories(*), modules(*)').eq('user_id', user.id).order('priority_score', {ascending:false}),
-      supabase.from('user_settings').select('*').eq('user_id', user.id).single()
+      uid !== 'bypass-mode'
+        ? supabase.from('courses').select('*, categories(*), modules(*)').eq('user_id', uid).order('priority_score', {ascending:false})
+        : { data: [] },
+      uid !== 'bypass-mode'
+        ? supabase.from('user_settings').select('*').eq('user_id', uid).single()
+        : { data: null },
     ])
 
     if (cats) { setCategories(cats); if (!newCatId && cats.length) setNewCatId(cats[0].id) }
     if (coursesData) {
-      const sorted = coursesData.map((c: Course) => ({
+      const sorted = (coursesData as Course[]).map((c: Course) => ({
         ...c, modules: (c.modules || []).sort((a: Module, b: Module) => a.order_index - b.order_index)
       }))
       setCourses(sorted)
     }
-    if (settings) setDeadline(settings.deadline || '')
+    if (settings) setDeadline((settings as any).deadline || '')
     setLoading(false)
   }, [supabase, router, newCatId])
 
