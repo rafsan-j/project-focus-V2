@@ -2,11 +2,12 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
+  const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get('code')
 
   if (code) {
-    const cookieStore = new Map<string, string>()
+    const response = NextResponse.redirect(requestUrl.origin + '/')
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -16,22 +17,17 @@ export async function GET(request: NextRequest) {
             return request.cookies.getAll()
           },
           setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-            cookiesToSet.forEach(({ name, value }) => cookieStore.set(name, value))
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options)
+            })
           },
         },
       }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-    if (!error) {
-      const response = NextResponse.redirect(`${origin}/`)
-      cookieStore.forEach((value, name) => {
-        response.cookies.set(name, value)
-      })
-      return response
-    }
+    await supabase.auth.exchangeCodeForSession(code)
+    return response
   }
 
-  return NextResponse.redirect(`${origin}/login?error=Could not confirm email`)
+  return NextResponse.redirect(requestUrl.origin + '/login')
 }
