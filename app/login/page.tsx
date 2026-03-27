@@ -14,18 +14,41 @@ export default function LoginPage() {
   const supabase = createClient()
 
   async function handleAuth() {
-    setLoading(true); setError(''); setMessage('')
+  setLoading(true)
+  setError('')
+  setMessage('')
+
+  if (!email || !password) {
+    setError('Please enter both email and password.')
+    setLoading(false)
+    return
+  }
+
+  try {
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password })
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      console.log('SignUp result:', data, error)
       if (error) setError(error.message)
       else setMessage('Check your email to confirm your account, then log in.')
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setError(error.message)
-      else router.push('/')
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      console.log('SignIn result:', data, error)
+      if (error) {
+        setError(error.message)
+      } else if (data.session) {
+        router.push('/')
+        router.refresh()
+      } else {
+        setError('Login failed. Please confirm your email first.')
+      }
     }
-    setLoading(false)
+  } catch (err) {
+    console.error('Auth exception:', err)
+    setError('Something went wrong. Check your Supabase URL and key.')
   }
+
+  setLoading(false)
+}
 
   return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',padding:'20px'}}>
